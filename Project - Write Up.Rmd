@@ -1,0 +1,768 @@
+---
+title: "Baseball Analysis"
+author: 'By Harold Espinosa'
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+
+<br>
+
+<font size = "5.5"> **Are the batters' age, BMI or country of birth characteristics that impact their performance in the game?**</font>
+
+![](Batter3.jpg)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Packages used
+library(tidyverse)
+library(patchwork)
+library(modelr)
+library(kableExtra)
+library(splines)
+options(na.action = na.warn)
+```
+
+```{r echo=FALSE}
+#Import data set
+baseball <- read.csv('baseball.csv', stringsAsFactors = FALSE)
+
+#Calculate BMI
+baseball <- baseball %>% 
+  mutate(BMI=round((Weight/((Height/100)^2)),digits = 2))
+
+#Remove variables no needed for the analysis
+baseball <- baseball %>%
+  select(-b_ab, -b_total_pa, -b_strikeout, -b_walk, -b_k_percent, -b_bb_percent, -slg_percent, - on_base_percent, -isolated_power, -b_rbi, -b_lob, -b_ab_scoring, -b_ball, -b_called_strike, -b_catcher_interf, -woba, -on_base_plus_slg)
+
+#Change column name
+names(baseball)[1]<-paste('last_name')
+names(baseball)[4]<-paste('country_birth')
+names(baseball)[9]<-paste('H')
+names(baseball)[10]<-paste('S')
+names(baseball)[11]<-paste('D')
+names(baseball)[12]<-paste('TR')
+names(baseball)[13]<-paste('HR')
+names(baseball)[14]<-paste('AVG')
+names(baseball)[15]<-paste('TB')
+names(baseball)[16]<-paste('CS')
+names(baseball)[17]<-paste('SB')
+```
+
+# Introduction
+
+In Baseball as in any other sports discipline, achieving the best results as a player depends on many variables that constantly change, such as, for example, the field of play, the combination of players in the games, the judges, the weather and even the player's mood during the match. In other words, it can be difficult to predict exactly what the result will be in a future match. However, thanks to statistics and the collection of data during history, it is possible to establish certain patterns that allow identifying strengths and weaknesses of the players, as well as establish the probability of occurrence of certain events based on specific variables.
+
+Considering the above, the objective of this project is to identify if the country of birth of a batter, his age or his body mass index are factors that impact the performance in the game, evaluating the number of hits, the batting average, the total bases, among other variables.
+
+<br>
+
+# Batters' Country of Birth Analysis
+
+It is strange to think that the country of birth of the players has an impact on performance in the game. To understand if this is possible, it is important to know a little about the relationship that countries have with this sport. First, as we saw in the exploratory data analysis within the project proposal, the players that are part of the data set that we are evaluating were born in eleven countries, of course the United States being the country with the most players. The next three countries with the most players are the Dominican Republic, Venezuela, and Cuba.
+
+<br>
+
+![](Dominican%20Republica.png){width="17" height="11"} - In the Dominican Republic, this sport has more than 100 years within the culture of this country. It is not known exactly how this sport came to the country, but some historians suggest that baseball arrived in the year 1880.
+
+![](Venezuela.png){width="17" height="11"} - In Venezuela, this sport began its rage, when American workers settled in the city of Zulia to work in the oilfields. The Americans brought bats and balls with them and introduced the sport to the locals. The first baseball team was established in 1895 but until 1941 this game became a total national obsession.
+
+![](cuba.png){width="17" height="11"} - In Cuba, this sport began to expand in 1860 by American migrants who arrived in the country. Today this sport is very important in Cuba. It is believed that it was the Cubans (who were fleeing a war in their country) who introduced this sport to the Dominican Republic and other regions of the Caribbean.
+
+![](estados%20unidos.png){width="17" height="11"} - As for the United States, it is not necessary to say much, because it was in this country where this sport was born, and as we observed, in the previous paragraphs, it was this country that influenced the adoption of this sport in other countries.
+
+<br>
+
+With this context in mind, let's analyze these countries:
+
+```{r echo=FALSE, out.width= "50%", out.extra='style="float:left; padding:10px"'}
+#Select just 4 countries
+baseball_country <- baseball %>%
+  filter(country_birth == 'USA' | country_birth == 'Dominican Republic' |
+          country_birth == 'Venezuela' | country_birth == 'Cuba')
+
+#Create the model
+modcounthits <- lm(H ~ country_birth, data = baseball_country)
+
+#Add predictions
+gridH <- baseball_country %>%
+  data_grid(country_birth) %>%
+  add_predictions(modcounthits)
+
+#Visualize the outputs
+ggplot(baseball_country, aes(x=country_birth)) +
+  geom_boxplot(aes(y=H)) +
+  geom_hline(aes(yintercept=138), colour="#18bc9c", linetype="dashed", size = 1) +
+  geom_point(data=gridH, aes(y=pred), colour = 'red', size = 5, shape = 18) +
+  labs(title = 'Total hits distributions by Country of Birth',
+       y = 'Total Hits',
+       x = ' ') +
+  theme(plot.title = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(linetype = 'dotted', 
+                                          color = "#DCDCDC",
+                                          size = 0.5),
+        plot.background = element_rect(colour = "grey", fill=NA, size=2))
+
+```
+
+This graph shows the distribution of total hits by country of birth of the batters. The green line represents the median of the hits for the entire data set. According to the previous analysis carried out in the project proposal, this value is equal to 138 hits. So, according to this graph, the batters who were born in Venezuela have a lower median of hits (124) than the total, while the batters who were born in the Dominican Republic have the highest median of the total of the data set.
+
+The batters who were born in the other two countries evaluated also show a median higher than the general median, so if the performance of the players in terms of hits were measured only by the median, it could be said that, the players who were born in Cuba, the United States and the Dominican Republic, they are good at hitting the ball.
+
+<br>
+
+Once the `lm` model was adjusted to the data set, the following predictions were obtained:
+
+```{r echo=FALSE}
+#Function to round df
+round_df <- function(x, digits) {
+    numeric_columns <- sapply(x, mode) == 'numeric'
+    x[numeric_columns] <-  round(x[numeric_columns], digits)
+    x
+}
+
+gridH <- round_df(gridH, 0)
+
+#Change column names
+names(gridH)[1]<-paste('Country of Birth')
+names(gridH)[2]<-paste('Prediction')
+
+#Table style
+kbl(gridH) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, font_size = 10, position='float_left') %>%
+  row_spec(0, background = '#18bc9c', color ='white') %>%
+  column_spec(1, border_right = T) 
+```
+
+<br>
+
+Despite the fact that batters born in the Dominican Republic have a higher median than those born in the United States, the predictive model indicates that the number of hits a batter from the United States can reach is higher (by one point).
+
+On the other hand, despite the fact that players born in Venezuela have a median close to 125 hits, the model predicts that if a player is born in that country, he has a probability of achieving 130 hits. <br><br>
+
+Now, let's analyze the relationship between the players' country of birth and four new variables. The green line represents the median of the total data, which may be different for each country of birth. The red diamonds represent the prediction for each country once the `lm` model has been applied.
+
+```{r echo=FALSE, fig.align = 'center'}
+#Create the model
+modcountBA <- lm(AVG ~ country_birth, data = baseball_country)
+
+#Add predictions
+gridBA <- baseball_country %>%
+  data_grid(country_birth) %>%
+  add_predictions(modcountBA)
+
+#Plot
+p3 <- ggplot(baseball_country, aes(y=country_birth, x=AVG)) +
+  geom_boxplot(outlier.size = 1) +
+  geom_vline(aes(xintercept=median(AVG, na.rm=T)), 
+             color = '#18bc9c', size = 1) +
+  geom_point(data=gridBA, aes(x=pred), colour = 'red', size = 3, shape = 18) +
+  scale_y_discrete(breaks=c("Venezuela", "USA", "Dominican Republic", "Cuba"),
+                      labels=c("VE", "US", "DO", "CU")) +
+  labs(title = "Batting Average by batters' Country of Birth",
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 9, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'gray'))
+
+#Create the model
+modcountTB <- lm(TB ~ country_birth, data = baseball_country)
+
+#Add predictions
+gridTB <- baseball_country %>%
+  data_grid(country_birth) %>%
+  add_predictions(modcountTB)
+
+#Plot
+p4 <- ggplot(baseball_country, aes(y=country_birth, x=TB)) +
+  geom_boxplot(outlier.size = 1) +
+  geom_vline(aes(xintercept=median(TB, na.rm=T)), 
+             color = '#18bc9c', size = 1) +
+  geom_point(data=gridTB, aes(x=pred), colour = 'red', size = 3, shape = 18) +
+  scale_y_discrete(breaks=c("Venezuela", "USA", "Dominican Republic", "Cuba"),
+                      labels=c("VE", "US", "DO", "CU")) +
+  labs(title = "Total Bases by Batters' Country of Birth",
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 9, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'gray'))
+
+#Create the model
+modcountCS <- lm(CS ~ country_birth, data = baseball_country)
+
+#Add predictions
+gridCS <- baseball_country %>%
+  data_grid(country_birth) %>%
+  add_predictions(modcountCS)
+
+#Plot
+p5 <- ggplot(baseball_country, aes(y=country_birth, x=CS)) +
+  geom_boxplot(outlier.size = 1) +
+  geom_vline(aes(xintercept=median(CS, na.rm=T)), 
+             color = '#18bc9c', size = 1) +
+  geom_point(data=gridCS, aes(x=pred), colour = 'red', size = 3, shape = 18) +
+  scale_y_discrete(breaks=c("Venezuela", "USA", "Dominican Republic", "Cuba"),
+                      labels=c("VE", "US", "DO", "CU")) +
+  labs(title = "Total Caught Stealing by Batters' Country of Birth",
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 9, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'gray'))
+
+#Create the model
+modcountSB <- lm(SB ~ country_birth, data = baseball_country)
+
+#Add predictions
+gridSB <- baseball_country %>%
+  data_grid(country_birth) %>%
+  add_predictions(modcountSB)
+
+#Plot
+p6 <- ggplot(baseball_country, aes(y=country_birth, x=SB)) +
+  geom_boxplot(outlier.size = 1) +
+  geom_vline(aes(xintercept=median(SB, na.rm=T)), 
+             color = '#18bc9c', size = 1) +
+  geom_point(data=gridCS, aes(x=pred), colour = 'red', size = 3, shape = 18) +
+  scale_y_discrete(breaks=c("Venezuela", "USA", "Dominican Republic", "Cuba"),
+                      labels=c("VE", "US", "DO", "CU")) +
+  labs(title = "Total Stolen Base by Batters' Country of Birth",
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 9, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'gray'))
+
+(p3 + p4) / (p5 + p6)
+```
+
+This distribution shows that the batters who were born in the Dominican Republic have a batting median and total bases higher than the general median, which indicates that these players have a good performance, as far as these two variables are concerned. While players born in Venezuela have a median lower than the general median in batting and bases.
+
+In terms of caught stealing and stolen base, players born in the Dominican Republic also have a median higher than the general median. However, this is a not so good indicator for these players, because as we saw in the previous analysis in the project proposal, the higher the number in this result, the fewer points are recorded for the team to which the player belongs.
+
+<br>
+
+Now let's analyze the predictions produced by the `lm` model:
+
+```{r echo=FALSE}
+gridBA <- round_df(gridBA, 3)
+gridTB <- round_df(gridTB, 0)
+gridCS <- round_df(gridCS, 0)
+gridSB <- round_df(gridSB, 0)
+
+firstjoin <- left_join(gridBA, gridTB, by ="country_birth")
+secondjoin <- left_join(gridCS, gridSB, by ="country_birth")
+finaljoin <- left_join(firstjoin, secondjoin, by ="country_birth")
+
+
+#Change column names
+names(finaljoin)[1]<-paste('Country of Birth')
+names(finaljoin)[2]<-paste('BA')
+names(finaljoin)[3]<-paste('TB')
+names(finaljoin)[4]<-paste('CS')
+names(finaljoin)[5]<-paste('SB')
+
+#Change data type
+finaljoin <- finaljoin %>%
+  mutate(BA = as.character(BA),
+         TB = as.character(TB),
+         CS = as.character(CS),
+         SB = as.character(SB))
+
+#Table style
+finaljoin[2,2] = cell_spec(finaljoin[[2,2]], color = '#18bc9c', bold = T)
+finaljoin[2,3] = cell_spec(finaljoin[[2,3]], color = '#18bc9c', bold = T)
+finaljoin[3,4] = cell_spec(finaljoin[[3,4]], color = '#18bc9c', bold = T)
+finaljoin[4,4] = cell_spec(finaljoin[[4,4]], color = '#18bc9c', bold = T)
+finaljoin[1,5] = cell_spec(finaljoin[[1,5]], color = '#18bc9c', bold = T)
+finaljoin[4,5] = cell_spec(finaljoin[[4,5]], color = '#18bc9c', bold = T)
+finaljoin[4,2] = cell_spec(finaljoin[[4,2]], color = 'red', bold = T)
+finaljoin[4,3] = cell_spec(finaljoin[[4,3]], color = 'red', bold = T)
+finaljoin[2,4] = cell_spec(finaljoin[[2,4]], color = 'red', bold = T)
+finaljoin[2,5] = cell_spec(finaljoin[[2,5]], color = 'red', bold = T)
+
+kbl(finaljoin, escape = F) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, font_size = 12, position='float_left') %>%
+  row_spec(0, background = '#2c3e50', color ='white') %>%
+  column_spec(1, border_right = T) 
+```
+
+According to the model, players born in the Dominican Republic have the probability of having a batting average of 0.272 which is very good, considering that the batting average of the entire league has generally hovered around 0.250, as indicated MLB on its official website. The same happens with players born in Cuba and the USA, who, even though they do not have the maximum batting average according to the predictions, do have a value higher than the average. On the other hand, Venezuelan-born batters have the lowest batting average according to the predictions.
+
+<br>
+
+A similar pattern can be seen in Total Bases predictions, where Dominican-born batters lead the list with the highest value and Venezuelan players are the ones with a low and even lower than average prediction (242) and median (237).
+
+On the other hand, analyzing the predictions of caught stealing and Stolen Base, it can be observed that the players from the Dominican Republic again have the highest number in these two variables. However, this is not a good indicator for the players, the higher the number in these variables, the more score or plays the team lost.
+
+In conclusion, it is observed that Players born in the Dominican Republic are good at hitting the ball and gaining bases, but they tend to be more easily caught stealing.
+
+<br>
+
+# Batters' Age Analysis
+
+The body of the human being constantly changes year after year, with periods of time where these changes are more noticeable, such as in childhood, adolescence, and old age. During the first stages of life, bones and muscles are strengthened, attention and flexibility are increased, among many factors, while in the last stage all these changes begin to be reversed and become negative.
+
+Now, there is an intermediate stage where the changes are not significant in a constant environment, but in an environment such as sports, with training, many of those strengths extend for a longer time.
+
+Is age a characteristic that impacts batters' performance in the game? The batters in this data set are between the ages of 22 and 41 years old. Is it possible for young players to perform better in the game simply because they are young? Or, on the contrary, do older players perform better because they have more time on the field and have developed more skills that younger players do not yet have? To answer these questions, I will apply the linear regression model to identify if age is a factor that should be considered to evaluate whether a player can perform well in the game.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align = 'center'}
+modagehits <- lm(H ~ns(player_age, 5), data=baseball)
+agehits <- baseball %>%
+  gather_predictions(modagehits, .pred = 'pred')
+
+
+p7 <- ggplot(baseball, aes(x=player_age, y=H)) +
+  geom_point(color = '#2c3e50', size = 4, alpha = 0.7, shape = 18) +
+  geom_line(aes(y=pred), data=agehits, colour='#18bc9c', size = 2) +
+  theme_light() +
+  labs(title = "Totla Hits vs Batters' Age",
+       x = 'Age',
+       y = 'Total Hits') +
+   theme(plot.title = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
+  
+modageavg <- lm(AVG ~ns(player_age, 5), data=baseball)
+ageavg <- baseball %>%
+  gather_predictions(modageavg, .pred = 'pred')
+
+
+p8 <- ggplot(baseball, aes(x=player_age, y=AVG)) +
+  geom_point(color = '#2c3e50', size = 4, alpha = 0.7, shape = 18) +
+  geom_line(aes(y=pred), data=ageavg, colour='#18bc9c', size = 2) +
+  theme_light() +
+  labs(title = "Batting Average vs Batters' Age",
+       x = 'Age',
+       y = 'Batting Average') +
+   theme(plot.title = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
+```
+
+### [Relationship between Batters' age and Total Hits]{.ul}
+
+In order to determine if there is any relationship between the age of the players and the total hits, I created a scatterplot and added a line to identify if there is any pattern that allows inferring about this relationship, I created the line applying a non-linear model, using the following variables: `lm(H ~ns(player_age, 5), data=baseball)`
+
+```{r echo=FALSE, out.width= "50%", out.extra='style="float:left; padding:10px"'}
+p7
+```
+
+<br>
+
+The coefficient correlation for this relationship is:
+
+```{r echo=FALSE}
+round(cor(baseball$player_age, baseball$H), digits = 2)
+```
+
+According to what is visualized in the plot and considering the calculated correlation coefficient, the relationship between these two variables is very weak, with a negative trend, that is, the older a player is, the apparently less number of hits they get.
+
+Analyzing the direction of the model (green line) a low peak is observed when the player is 30 years old, that is, the number of hits decreases between batters from 29 years to 30 years and then there is a small increase between 30 and 31 years.
+
+Let's look at the analysis of the model in detail:
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:left; padding:10px"'}
+summary(modagehits)
+```
+
+<br>
+
+-   **Intercept:** 157.587 is the point where regression line intersects the y-axis. In the context of this analysis, this means that when the players are zero years old, the y-axis equals 157 hits. This does not make sense, specially, because the data set is very far from this intercept, since the minimum age of the players is 22 years.
+
+-   **Slope:** This model, as it is not linear, presents different knots. The first knots is -15, which means that when the players are young and increase a year of life, the number of hits decreases on average by 15 hits. Whereas when the player is among the majors, the number of hits decreases an average of 23 hits for each new year of life.
+
+-   **Multiple R-Squared:** This value, which is 0.0503, indicates that the probability of predicting the number of hits using age as a reference is only 5%, which allows to conclude that age is not a factor when determining the performance of a batter in the game, as far as hits are concerned.
+
+-   Due to the low ratio of these two variables, I do not consider it necessary to perform a residual value analysis.
+
+<br>
+
+### [Relationship between Batters' age and Batting Average]{.ul}
+
+In order to determine if there is any relationship between the age of the players and the batting average, I created a scatterplot and added a line to identify if there is any pattern that allows inferring about this relationship, I created the line applying a non-linear model, using the following variables: `lm(AVG ~ns(player_age, 5), data=baseball)`
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:right; padding:10px"'}
+p8
+```
+
+The coefficient correlation for this relationship is:
+
+```{r echo=FALSE}
+round(cor(baseball$player_age, baseball$AVG), digits = 2)
+```
+
+According to what is visualized in the plot and considering the calculated correlation coefficient, the relationship between these two variables is very weak, with a negative trend, that is, the older a player is, the apparently less average of batting they get.
+
+Analyzing the direction of the model (green line) a significant decrease is observed in the batting average among players aged 22 and 25 years. Then the decline continues, but in a slower manner. After the age of 32, it is observed that the average slowly increases again.
+
+Let's look at the analysis of the model in detail:
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:left; padding:10px"'}
+summary(modageavg)
+```
+
+<br>
+
+-   **Intercept:** 0.290 is the point where regression line intersects the y-axis. In the context of this analysis, this means that when the players are zero years old, the y-axis equals 0.290 batting average. This does not make sense, specially, because the data set is very far from this intercept, since the minimum age of the players is 22 years.
+
+-   **Slope:** This model, as it is not linear, presents different knots. The first knot is -0.025 which means that when the players are young and increase a year of life, the batting average decreases on average by 0.025. Whereas when the player is among the majors, the batting average decreases an average of 0.010 for each new year of life.
+
+-   **Multiple R-Squared:** This value, which is 0.052, indicates that the probability of predicting the batting average using age as a reference is only 5%, which allows to conclude that age is not a factor when determining the performance of a batter in the game, as far as batting average are concerned.
+
+-   Due to the low ratio of these two variables, I do not consider it necessary to perform a residual value analysis.
+
+<br>
+
+### [What happens if we include the country of birth in this analysis?]{.ul}
+
+Now we are going to see the previous relationships by adding a categorical variable, the players' country of birth. For this analysis, I am including the four countries with the most players, these are: United States (US), Dominican Republic (DO), Cuba (CU) and Venezuela (VE).
+
+The model used in this analysis is the following: `lm(y ~ x1 * x2, data)` where `y` are the response variables for total hits and batting average, `x1` is the continuous variable age and `x2` is the categorical variable country of birth.
+
+<br>
+
+```{r echo=FALSE}
+modagecountry <- lm(H ~ player_age * country_birth, data = baseball_country)
+
+gridagcountry <- baseball_country %>%
+  data_grid(player_age, country_birth) %>%
+  gather_predictions(modagecountry)
+
+s1 <- ggplot(baseball_country, aes(player_age, H, color = country_birth)) +
+    geom_point(size =2, alpha=0.7) +
+  geom_line(data=gridagcountry, aes(y=pred), size = 1) +
+  theme_classic() +
+  labs(title = 'Total Hits vrs Age and Country of Birth',
+         x = "Batters' age",
+         y = 'Total Hits') +
+  theme(legend.justification=c(1,1), legend.position=c(1,1),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(fill='#F2F2F2'),
+        plot.title = element_text(size = 10, face = 'bold'),
+        axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 7),
+        axis.title.y = element_text(size = 7)) +
+  scale_color_manual(values=c("#2c3e50", "#18bc9c", "gray", "red"),
+                     breaks=c('Cuba', "Dominican Republic", "USA", "Venezuela"),
+                     labels=c("CU", "DO", "US", "VE"))
+  
+
+  
+
+modagecountry2 <- lm(AVG ~ player_age * country_birth, data = baseball_country)
+
+gridagcountry2 <- baseball_country %>%
+  data_grid(player_age, country_birth) %>%
+  gather_predictions(modagecountry2)
+
+s2 <- ggplot(baseball_country, aes(player_age, AVG, colour = country_birth)) +
+  geom_point(size=2, alpha = 0.7) +
+  geom_line(data=gridagcountry2, aes(y=pred), size = 1) +
+  theme_classic() +
+  labs(title = 'Avg Batting vrs Age and Country of Birth',
+         x = "Batters' age",
+         y = 'Avg. Batting') +
+  theme(legend.justification=c(1,0), legend.position=c(1,0),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(fill='#F2F2F2'),
+        plot.title = element_text(size = 10, face = 'bold'),
+        axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 7),
+        axis.title.y = element_text(size = 7)) +
+  scale_color_manual(values=c("#2c3e50", "#18bc9c", "gray", "red"),
+                     breaks=c('Cuba', "Dominican Republic", "USA", "Venezuela"),
+                     labels=c("CU", "DO", "US", "VE"))
+
+s1 + s2
+```
+
+```{r echo=FALSE}
+cuba <- baseball_country %>%
+  filter(country_birth == 'Cuba')
+
+cubacor1 <- cor(cuba$player_age, cuba$H)
+cubacor2 <- cor(cuba$player_age, cuba$AVG)
+cubacor3 <- cor(cuba$BMI, cuba$H)
+cubacor4 <- cor(cuba$BMI, cuba$AVG)
+
+DO <- baseball_country %>%
+  filter(country_birth == 'Dominican Republic')
+
+DOcor1 <- cor(DO$player_age, DO$H)
+DOcor2 <- cor(DO$player_age, DO$AVG)
+DOcor3 <- cor(DO$BMI, DO$H)
+DOcor4 <- cor(DO$BMI, DO$AVG)
+
+US <- baseball_country %>%
+  filter(country_birth == 'USA')
+```
+
+<br>
+
+Now we can see that there is a positive relationship between age and total hits for players who were born in Cuba. The correlation coefficient is `0.34`. In other words, the older a Cuban-born player is, the more likely it is to have a greater number of hits. While players born in the Dominican Republic and the United States tend to have fewer hits as they get older. The correlation of players born in the United States is `-0.20` and those born in the Dominican Republic is `-0.24`.
+
+The same pattern is observed, when comparing the age of the players, the batting average and the country of birth. Players from Cuba have a positive relationship in these variables.
+
+<br>
+
+# Batters' BMI Analysis
+
+In some sports such as athletics, the body mass index is important therefore, applying Newton's law of gravity, the lower the weight, the higher the speed. In the context of Baseball and considering the variables that we are evaluating, the objective is to determine if there is any relationship between the BMI of the players and the number of hits or batting average. Is it possible that the more BMI, the greater the force in the arms to achieve a hit, or the better the precision when hitting the ball? Let's analyze these variables by applying linear regression models.
+
+<br>
+
+### [Relationship between Batters' BMI and Total Hits]{.ul}
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align = 'center'}
+modbmihits <- lm(H ~ns(BMI, 5), data=baseball)
+bmihits <- baseball %>%
+  gather_predictions(modbmihits, .pred = 'pred')
+
+p11 <- ggplot(baseball, aes(x=BMI, y=H)) +
+  geom_point(color = '#2c3e50', size = 4, alpha = 0.7, shape = 18) +
+  geom_line(aes(y=pred), data=bmihits, colour='red', size = 2) +
+  theme_light() +
+  labs(title = "Totla Hits vs Batters' BMI",
+       x = 'BMI',
+       y = 'Total Hits') +
+   theme(plot.title = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
+
+modbmiavg <- lm(AVG ~ns(BMI, 5), data=baseball)
+bmiavg <- baseball %>%
+  gather_predictions(modbmiavg, .pred = 'pred')
+
+p12 <- ggplot(baseball, aes(x=BMI, y=AVG)) +
+  geom_point(color = '#2c3e50', size = 4, alpha = 0.7, shape = 18) +
+  geom_line(aes(y=pred), data=bmiavg, colour='red', size = 2) +
+  theme_light() +
+  labs(title = "Batting Average vs Batters' BMI",
+       x = 'BMI',
+       y = 'Batting Average')  +
+   theme(plot.title = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
+
+```
+
+In order to determine if there is any relationship between the BMI of the players and the total hits, I created a scatterplot and added a line to identify if there is any pattern that allows inferring about this relationship, I created the line applying a non-linear model, using the following variables: `lm(H ~ns(BMI, 5), data=baseball)`
+
+```{r echo=FALSE, out.width= "50%", out.extra='style="float:left; padding:10px"'}
+p11
+```
+
+<br>
+
+The coefficient correlation for this relationship is:
+
+```{r echo=FALSE}
+round(cor(baseball$BMI, baseball$H), digits = 2)
+```
+
+According to what is visualized in the plot and considering the calculated correlation coefficient, the relationship between these two variables is very weak, with a negative trend, that is, the higher the BMI is, the apparently less number of hits they get.
+
+Analyzing the direction of the model (red line) it is observed that when the players' BMI increases between 25 and 28, the hits decrease, but when the BMI goes from 28 to 30, the BMI increases slowly again.
+
+Let's look at the analysis of the model in detail:
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:left; padding:10px"'}
+summary(modbmihits)
+```
+
+<br>
+
+-   **Intercept:** 150 is the point where regression line intersects the y-axis. In the context of this analysis, this means that when the players are zero BMI, the y-axis equals 150 hits. This does not make sense, specially, because the data set is very far from this intercept, since the minimum BMI of the players is 22.
+
+-   **Slope:** This model, as it is not linear, presents different knots. The second knot is -21 which means that when the players have a low BMI and increase the BMI, the number of hits decreases on average by 21 hits. Whereas when the player have a high BMI, the number of hits decreases an average of 16 hits for each new BMI.
+
+-   **Multiple R-Squared:** This value, which is 0.0604, indicates that the probability of predicting the number of hits using BMI as a reference is only 6%, which allows to conclude that BMI is not a factor when determining the performance of a batter in the game, as far as hits are concerned.
+
+-   Due to the low ratio of these two variables, I do not consider it necessary to perform a residual value analysis.
+
+<br>
+
+### [Relationship between Batters' BMI and Batting Average]{.ul}
+
+In order to determine if there is any relationship between the BMI of the players and the batting average, I created a scatterplot and added a line to identify if there is any pattern that allows inferring about this relationship, I created the line applying a non-linear model, using the following variables: `lm(AVG ~ns(BMI, 5), data=baseball)`
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:right; padding:10px"'}
+p12
+```
+
+The coefficient correlation for this relationship is:
+
+```{r echo=FALSE}
+round(cor(baseball$BMI, baseball$AVG), digits = 2)
+```
+
+According to what is visualized in the plot and considering the calculated correlation coefficient, the relationship between these two variables is very weak, with a negative trend, that is, the higher the BMI is, the apparently less average of batting they get.
+
+Analyzing the direction of the model (red line) a significant decrease is observed in the batting average among BMI between 22 and 28 years. After the age of 30, it is observed that the average slowly increases again.
+
+Let's look at the analysis of the model in detail:
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:left; padding:10px"'}
+summary(modbmiavg)
+```
+
+<br>
+
+-   **Intercept:** 0.294 is the point where regression line intersects the y-axis. In the context of this analysis, this means that when the players are zero BMI, the y-axis equals 0.294 batting average. This does not make sense, specially, because the data set is very far from this intercept, since the minimum BMIof the players is 22.
+
+-   **Slope:** This model, as it is not linear, presents different knots. The first knot is -0.027 which means that when the players have low BMI, the batting average decreases on average by 0.027. Whereas when the player have a higher BMI, the batting average decreases an average of 0.016 for each new BMI.
+
+-   **Multiple R-Squared:** This value, which is 0.025, indicates that the probability of predicting the batting average using BMI as a reference is only 2.5%, which allows to conclude that BMI is not a factor when determining the performance of a batter in the game, as far as batting average are concerned.
+
+-   Due to the low ratio of these two variables, I do not consider it necessary to perform a residual value analysis.
+
+<br>
+
+### [What happens if we include the country of birth in this analysis?]{.ul}
+
+Now we are going to see the previous relationships by adding a categorical variable, the players' country of birth. For this analysis, I am including the four countries with the most players, these are: United States (US), Dominican Republic (DO), Cuba (CU) and Venezuela (VE).
+
+The model used in this analysis is the following: `lm(y ~ x1 * x2, data)` where `y` are the response variables for total hits and batting average, `x1` is the continuous variable age and `x2` is the categorical variable country of birth.
+
+```{r echo=FALSE}
+modbmicountry <- lm(H ~ BMI * country_birth, data = baseball_country)
+
+gridbmicountry <- baseball_country %>%
+  data_grid(BMI, country_birth) %>%
+  gather_predictions(modbmicountry)
+
+s3 <- ggplot(baseball_country, aes(BMI, H, color = country_birth)) +
+    geom_point(size =2, alpha=0.7) +
+  geom_line(data=gridbmicountry, aes(y=pred), size = 1) +
+  theme_classic() +
+  labs(title = 'Total Hits vrs BMI and Country of Birth',
+         x = "Batters' BMI",
+         y = 'Total Hits') +
+  theme(legend.justification=c(1,1), legend.position=c(1,1),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(fill='#F2F2F2'),
+        plot.title = element_text(size = 10, face = 'bold'),
+        axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 7),
+        axis.title.y = element_text(size = 7)) +
+  scale_color_manual(values=c("#2c3e50", "#18bc9c", "gray", "red"),
+                     breaks=c('Cuba', "Dominican Republic", "USA", "Venezuela"),
+                     labels=c("CU", "DO", "US", "VE"))
+  
+
+modbmicountry2 <- lm(AVG ~ BMI * country_birth, data = baseball_country)
+
+gridbmicountry2 <- baseball_country %>%
+  data_grid(BMI, country_birth) %>%
+  gather_predictions(modbmicountry2)
+
+s4 <- ggplot(baseball_country, aes(BMI, AVG, colour = country_birth)) +
+  geom_point(size=2, alpha = 0.7) +
+  geom_line(data=gridbmicountry2, aes(y=pred), size = 1) +
+  theme_classic() +
+  labs(title = 'Avg Batting vrs BMI and Country of Birth',
+         x = "Batters' BMI",
+         y = 'Avg. Batting') +
+  theme(legend.justification=c(1,1), legend.position=c(1,1),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        legend.background = element_rect(fill='#F2F2F2'),
+        plot.title = element_text(size = 10, face = 'bold'),
+        axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 7),
+        axis.title.y = element_text(size = 7)) +
+  scale_color_manual(values=c("#2c3e50", "#18bc9c", "gray", "red"),
+                     breaks=c('Cuba', "Dominican Republic", "USA", "Venezuela"),
+                     labels=c("CU", "DO", "US", "VE"))
+
+s3 + s4
+```
+
+<br>
+
+In the first graph, a pattern similar to that seen in the analysis of the age of the players is observed. Cuban-born batters, the more BMI they have, the more likely they are to have a higher number of hits.
+
+Regarding the analysis of the batting average, it is observed that for players born in Cuba and Venezuela, there is no relationship between these two variables, that is, if the BMI increases, it does not significantly affect the batting average. However, for players born in the Dominican Republic and USA this relationship is negative with a coefficient of correlation of `-0.44` and `-0.22` respectively, indicating that the higher the BMI, the lower the batting average the players have.
+
+# Conclusion and discussion
+
+<br>
+
+The purpose of this project was to identify whether the age, body mass index, or country of birth of batters influences their performance in the game. Once the different analyzes have been carried out, it can be concluded that neither the age nor the BMI of the players are factors or characteristics that have a close relationship with their performance in the game, especially speaking of the number of hits or the batting average.
+
+As can be seen in the result of the Multiple R-Squared, all the relationships have a value lower than 6%, which indicates that neither age nor BMI are variables that impact the response variables (Hits and batting average).
+
+On the other hand, considering the correlation coefficient, all the analyzed combinations have a weak relationship, since the coefficient is less than 0.2. A pattern that can be visualized in this correlation is that they are all negative, which indicates that the values (Hits and batting average) tend to decrease with the increase of the years and the increase of the BMI of the players.
+
+Analyzing the players' country of birth, it can be concluded that the players from the Dominican Republic have the best performance in the game, with predictive values above the average. While the players who were born in Venezuela tend to have the lowest predictive values.
+
+Regarding the methods used for this analysis, different models were applied to identify the best possible prediction. However, the relationship between the explanatory and response variables was very weak, so that, in all models, the R-Squared multiple was always low. I would have liked to visualize the residuals of the predictions, but having such a low probability, this analysis would not have been important.
+
+Regarding the data set, it can be concluded that the analyzed variables do not present outliers that affect the prediction result. In fact, both age and BMI, which were the explanatory variables, had a distribution very close to being normal.
+
+If I could start the project again, I would like to look for other variables that have a stronger relationship, such as, for example, it would be interesting to be able to analyze the training hours of the players, the type of diet, number of games played, number of hours sleep, among other variables, which allow to conclude which are those characteristics that affect their performance in the game.
+
+![](final.jpg)
+
+<br>
+
+# Resources
+
+The following sources were consulted for the development of this project:
+
+<br>
+
+-   *What is my BMI?* (2020, September 17). Centers for Disease Control and Prevention. [Click here.](https://www.cdc.gov/healthyweight/assessing/bmi/adult_bmi/english_bmi_calculator/bmi_calculator.html)
+
+-   *Why are Venezuelans so crazy about beisbol?* (2016, January 2). Caracas Chronicles. [Click here.](https://www.caracaschronicles.com/2016/01/02/why-are-venezuelans-so-crazy-about-beisbol/){.uri}
+
+-   *DR1.com*. (n.d.). DR1.com - Dominican Republic News & Travel Information Service. [Click here.](https://dr1.com/articles/baseball.shtml){.uri}
+
+-   *Cuban baseball - A guide to baseball in Cuba*. (2018, February 28). Cuban Travel Business. [Click here.](https://www.cuba-culture.com/baseball-cuba-sports/){.uri}
+
+-   *Baseball in America: A history*. (2017, February 11). [Click here.](https://www.infoplease.com/people/baseball-players/baseball-america-history)
