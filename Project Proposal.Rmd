@@ -1,0 +1,555 @@
+---
+title: "Project Proposal - Baseball Analysis"
+author: 'Harold Espinosa'
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    df_print: paged
+    css: "custom.css"
+---
+
+```{r setup, include=FALSE}
+## Global options
+knitr::opts_chunk$set(cache = TRUE)
+```
+
+![](bb.jpg)
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#Packages used
+library(tidyverse)
+library(patchwork)
+library(moments)
+library(kableExtra)
+```
+
+```{r echo=FALSE}
+#Import data set
+baseball <- read.csv('baseball.csv', stringsAsFactors = FALSE)
+
+#Calculate BMI
+baseball <- baseball %>% 
+  mutate(BMI=(round((Weight/((Height/100)^2)))))
+
+#Remove variables no needed for the analysis
+baseball <- baseball %>%
+  select(-b_ab, -b_total_pa, -b_strikeout, -b_walk, -b_k_percent, -b_bb_percent, -slg_percent, - on_base_percent, -isolated_power, -b_rbi, -b_lob, -b_ab_scoring, -b_ball, -b_called_strike, -b_catcher_interf, -woba, -on_base_plus_slg)
+
+#Change column name
+names(baseball)[1]<-paste('last_name')
+names(baseball)[4]<-paste('country_birth')
+names(baseball)[9]<-paste('H')
+names(baseball)[10]<-paste('S')
+names(baseball)[11]<-paste('D')
+names(baseball)[12]<-paste('TR')
+names(baseball)[13]<-paste('HR')
+names(baseball)[14]<-paste('AVG')
+names(baseball)[15]<-paste('TB')
+names(baseball)[16]<-paste('CS')
+names(baseball)[17]<-paste('SB')
+```
+
+# Introduction
+
+Baseball is one of the oldest and most popular sports, which is practiced in different parts of the world, with a great reception in the United States. This sport is practiced with a ball and a bat between two teams of nine players each. The team that scores the most runs over the nine innings, wins the game.
+
+In this sport there are two main roles. One of them is the pitcher who is in charge of pitching the ball towards the catcher of their team, and the other role is the batter who tries to hit the ball towards the inside of the field. Players, score runs by hitting the ball and running through different bases, before one player is eliminated.
+
+As can be seen, baseball is a very demanding sport, which requires developing physical skills such as [**reflexes**]{style="color:#6A2222"} to be able to identify the direction of the ball, [**speed**]{style="color:#6A2222"} to reach the next base in time before being caught by the ball, [**strength in the arms**]{style="color:#6A2222"} to throwing the ball as far as possible and [**flexibility**]{style="color:#6A2222"} to increase the possibility of other physical abilities such as strength, speed, and endurance. All of these are skills that can be developed with training, but that can also decrease over the years if players do not continue training or simply because of the natural physical wear and tear of the human body.
+
+Therefore, the objective is to be able to determine if it is possible that the older a player is, the lower is his performance in the game, or on the contrary, the player has a higher performance in the game because of more years of experience. I also want to determine whether the force exerted by a player to hit a ball or the speed of the player so as not to be caught while running, is linked to his weight and / or height. And last but not least, if the country of birth has any impact to genarate good results in the game. All these lead me to generate the following question, which is intended to be answered in this project: [**Are the batters' age, BMI or country of birth characteristics that impact their performance in the game?**]{.ul}
+
+To answer this question, I am using a data set downloaded from the official MLB website ([The Official Site of Major League Baseball](https://baseballsavant.mlb.com/leaderboard/custom?year=2021,2020,2019,2018,2017&type=batter&filter=&sort=1&sortDir=asc&min=q&selections=player_age,b_ab,b_total_pa,b_total_hits,b_single,b_double,b_triple,b_home_run,b_strikeout,b_walk,b_k_percent,b_bb_percent,batting_avg,slg_percent,on_base_percent,on_base_plus_slg,isolated_power,b_rbi,b_lob,b_total_bases,r_total_caught_stealing,r_total_stolen_base,b_ab_scoring,b_ball,b_called_strike,b_catcher_interf,r_stolen_base_pct,woba,rel_league_reaction_distance,&chart=false&x=player_age&y=player_age&r=no&chartType=beeswarm)). The data set corresponds to the table of classifications of 132 batters during the 2021.
+
+From the official site, the data set can be customized with different criterias. To develop this project, I am using the following variables:
+
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Variable                                                                                         | Description                                                                                                                                                                                                                                                                                                                                                      |
++==================================================================================================+==================================================================================================================================================================================================================================================================================================================================================================+
+| Last name                                                                                        | Batter's last name                                                                                                                                                                                                                                                                                                                                               |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| First name                                                                                       | Batter's first name                                                                                                                                                                                                                                                                                                                                              |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Team                                                                                             | Batter's team                                                                                                                                                                                                                                                                                                                                                    |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Country of Birth                                                                                 | Batter's country of birth                                                                                                                                                                                                                                                                                                                                        |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Height                                                                                           | Batter's height                                                                                                                                                                                                                                                                                                                                                  |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Weight                                                                                           | Batter's weight                                                                                                                                                                                                                                                                                                                                                  |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Player id                                                                                        | Batter's ID                                                                                                                                                                                                                                                                                                                                                      |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Player age                                                                                       | Batter's age                                                                                                                                                                                                                                                                                                                                                     |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Total hits **(H)**                                                                               | A hit occurs when a batter strikes the baseball into fair territory and reaches base without doing so via an error or a fielder's choice. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/hit#:~:text=Definition,error%20or%20a%20fielder's%20choice.&text=If%20a%20player%20is%20thrown,Hits%20come%20in%20all%20varieties.)                     |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Single **(S)**                                                                                   | A single occurs when a batter hits the ball and reaches first base without the help of an intervening error or attempt to put out another baserunner. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/single#:~:text=A%20single%20occurs%20when%20a,they%20occur%20in%20many%20varieties.)                                                        |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Double **(D)**                                                                                   | A batter is credited with a double when he hits the ball into play and reaches second base without the help of an intervening error or attempt to put out another baserunner. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/double#:~:text=Definition,or%20off%20the%20outfield%20wall.)                                                        |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Triple **(TR)**                                                                                  | A triple occurs when a batter hits the ball into play and reaches third base without the help of an intervening error or attempt to put out another baserunner. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/triple#:~:text=Often%20called%20%22the%20most%20exciting,to%20put%20out%20another%20baserunner.)                                  |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Home Run **(HR)**                                                                                | A home run occurs when a batter hits a fair ball and scores on the play without being put out or without the benefit of an error. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/home-run#:~:text=Definition,outfield%20fence%20in%20fair%20territory.&text=Home%20runs%20can%20be%20a%20great%20stat%20for%20evaluating%20a%20hitter's%20power) |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Batting average **(AVG)**                                                                        | Batting average is determined by dividing a player's hits by his total at-bats for a number between zero (shown as .000) and one (1.000). [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/batting-average)                                                                                                                                        |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Total bases **(TB)**                                                                             | Total bases refer to the number of bases gained by a batter through his hits. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/total-bases#:~:text=Definition,a%20batter%20through%20his%20hits.&text=Total%20bases%20are%20used%20to,bases%20tally%20through%20a%20hit.)                                                                          |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Total caught stealing **(CS)**                                                                   | A caught stealing occurs when a runner attempts to steal but is tagged out before reaching second base, third base or home plate. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/caught-stealing)                                                                                                                                                |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Total stolen base **(SB)**                                                                       | A stolen base occurs when a baserunner advances by taking a base to which he isn't entitled. [(MLB Definition)](https://www.mlb.com/glossary/standard-stats/stolen-base)                                                                                                                                                                                         |
++--------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+# Data Analysis Plan
+
+## **Variables**
+
+For the development of this project I will use the following variables:
+
+-   As an explanatory variable, the age and body mass (BMI) of the players will be used. This last variable will be a new column calculated using the height and weight of each player.
+
+-   For the response variables, total hits, batting average, total bases, total caught stealing and total stolen base will be used.
+
+    <br>
+
+## **Exploratory Data Analysis**
+
+To understand the data set in detail, especially the variables that I will use to answer the main question of this project, I will do a exploratory data analysis, performing univariate analysis on some numerical and categorical variables.
+
+<br>
+
+#### Univariate Analysis - Numerical Variables
+
+[**Batters age**]{.ul}
+
+The age of the players is one of the main variables required to answer the question of this project. Therefore, it is important to understand the age range of the players in this data set, so that when comparing it with other characteristics, it can be inferred what is the relationship between age and the response variables.
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:right; padding:10px"'}
+
+ggplot(baseball, aes(player_age)) +
+  geom_density(color='gray', fill = 'gray', alpha = 0.5) +
+  geom_vline(aes(xintercept=median(player_age, na.rm=T)),
+             color='red', size = 0.5, linetype = 'dashed') +
+  geom_vline(aes(xintercept=mean(player_age, na.rm=T)),
+             color='#5A3A31', size = 0.5, linetype = 'dashed') +
+  labs(title = 'Players age\'s distribution',
+       y = 'Density',
+       x = 'Age') +
+  theme(plot.title = element_text(size = 14, face = 'bold'),,
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(linetype = 'dotted', 
+                                          color = "#DCDCDC",
+                                          size = 0.5),
+        plot.background = element_rect(colour = "grey", fill=NA, size=1)) +
+  annotate('rect',
+           xmin = c(33.5), xmax = c(37.2),
+           ymin = c(0.083), ymax = c(0.0917),
+           color = '#84714F', alpha = 0) +
+  annotate("text",
+           y=0.09, x=34, 
+           label = '- - -', 
+           size =4,
+           color = 'red') +
+  annotate("text",
+           y=0.09, x=36, 
+           label = 'Median: 29', 
+           size =4) +
+  annotate("text",
+           y=0.087, x=34, 
+           label = '- - -', 
+           size =4,
+           color = '#5A3A31') +
+  annotate("text",
+           y=0.086, x=36, 
+           label = 'Mean: 29.2', 
+           size =4)
+
+
+```
+
+See what the distribution of this variable says in this data set.
+
+The age distribution of the batters in this data set tends to be normal distributed and unimodal (one peak). As can be seen, the mean (29.2 years) is very close to the median (29 years). The youngest player is 22 years old and the oldest is 41 years old.
+
+```{r echo=FALSE}
+ageskw <- round(skewness(baseball$player_age), digits = 2)
+print(paste0('The skewness is: ', ageskw))
+```
+
+The above, confirms that, this distribution is almost normal distributed, which for the analysis of this project is ideal, considering that there will be no skew when comparing age with the response variables.
+
+```{r echo=FALSE}
+agesd <- round(sd(baseball$player_age), digits = 2)
+print(paste0('The Standard deviation of this variable is: ', agesd))
+```
+
+Regarding the standard deviation we can see that the value is low, which means that data are clustered around the mean.
+
+<br>
+
+[**Batters BMI**]{.ul}
+
+The body mass index is the result of dividing the weight in kilograms by the square of the height in meters. This is a measure that has been used in the field of nutrition to establish whether a person is within an ideal weight or not. What does the BMI distribution of the batters say in this data set?
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:left; padding:10px"'}
+
+ggplot(baseball, aes(BMI)) + 
+  geom_density(color='gray', fill = 'gray', alpha = 0.7) +
+  geom_vline(aes(xintercept=median(BMI, na.rm=T)),
+             color='red', size = 0.5, linetype = 'dashed') +
+   geom_vline(aes(xintercept=mean(BMI, na.rm=T)),
+             color='#5A3A31', size = 0.5, linetype = 'dashed') +
+  geom_vline(aes(xintercept=quantile(BMI, 0.25)),
+             color='black', size = 1) + 
+  geom_vline(aes(xintercept=quantile(BMI, 0.75)),
+             color='black', size = 1) +
+  labs(title = 'Players BMI\'s distribution',
+       y = 'Density',
+       x = 'Body Mass Index') +
+  theme(plot.title = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(linetype = 'dotted', 
+                                          color = "#DCDCDC",
+                                          size = 0.5),
+        plot.background = element_rect(colour = "grey", fill=NA, size=1)) +
+  annotate("text",
+           y=0.19, x=28.4, 
+           label = '-----------------------------------> Q1: 26', 
+           size =4) +
+  annotate("text",
+           y=0.18, x=29.2, 
+           label = '-------------------------> Median: 27', 
+           size =4) +
+  annotate("text",
+           y=0.17, x=29.5, 
+           label = '-------------------> Mean: 27.5', 
+           size =4) +
+  annotate("text",
+           y=0.16, x=29.8, 
+           label = '-----> Q3: 29', 
+           size =4)
+```
+
+The distribution of the batters' body mass index has a small skew to the right, the mean is greater than the median by 0.5 points. This is a unimodal distribution (one peak).
+
+```{r echo=FALSE}
+bmikw <- round(skewness(baseball$BMI), digits = 2)
+print(paste0('The skewness is: ', bmikw))
+```
+
+The above confirms that this distribution has a skew to the right. However, it is observed that extreme outliers are not presented, which makes this variable very useful when combining it with the response variables.
+
+After analyzing the concentration of the data, that is, quartiles 1 and 3, we can see that most of the players have a BMI between 26 and 29. If we compare these data with respect to the "ideal IBM", it is observed that the players they tend to be "overweight" (ideal IBM is maximum 24). It is important to keep in mind that overweight can be represented not only in body fat, but also by the weight of the bones and muscles.
+
+Now the question is, considering the above, Could the weight of the player influence his speed when running? This will be one of the questions to be answered in this project.
+
+<br>
+
+[**Hits**]{.ul}
+
+A hit occurs when a batter hits the baseball in fair territory and reaches base without doing so via an error or the choice of a fielder. There are four types of hits, depends on how far the ball falls. Based on different factors such as force and speed with which the pitcher throws the ball and of course the force with which the batter hits it.
+
+Will the force exerted by the batter to hit a home run, depend on his age, BMI? or none of these? We will see this later. For now, let's look at the distribution of hits in this data set.
+
+```{r echo=FALSE, out.width= "80%", fig.align = 'center'}
+#Select variables about hits
+hits <- baseball %>%
+  select(player_id,S, D, TR, HR)
+
+#Pivot the table
+hitsp <- hits %>%
+  pivot_longer(c('S', 'D', 'TR', 'HR'),
+               names_to='Hites_type',
+               values_to='Hites')
+
+#Create plot
+ggplot(hitsp, aes(x=Hites, fill=Hites_type)) + 
+  geom_histogram(bins=30, alpha=0.7) +
+  labs(title = 'Hits distribution',
+       y = 'Frequency',
+       x = 'Hits') +
+  theme(plot.caption = element_text(size = 8, color ='#708090'),
+        plot.title = element_text(size = 12, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(linetype = 'dotted', 
+                                          color = "#DCDCDC",
+                                          size = 0.5),
+        legend.justification=c(1,1), legend.position=c(1,1),
+        legend.background = element_rect(fill="gray90", size=.5, linetype="dotted"),
+        plot.background = element_rect(colour = "grey", fill=NA, size=1))+
+  scale_fill_manual(values=c("#2A1A1F", "#764134", "#AD8350", '#AFA060'), 
+                       name="Hits Type",
+                       breaks=c("S", "D", "TR", "HR"),
+                       labels=c("Single", "Double", "Triple", "Home Run"))
+```
+
+As can be seen in the plot, the distribution of hits in this data set shows that players have registered more than 50 times simple hits, while triple hits, have been almost scarce (approximately more than 80 times no hits triple were registered in this data set)
+
+Let's look at the statistical measures:
+
+```{r echo=FALSE}
+Hstas <- baseball %>% 
+  summarise(Min = min(H), Q1=quantile(H, 0.25), Median = median(H), Mean=round(mean(H),digits = 2), Q2=quantile(H, 0.75), Max = max(H))
+Hstas['Description'] = 'Total hits'
+
+Sstas <- baseball %>% 
+  summarise(Min = min(S), Q1=quantile(S, 0.25), Median = median(S), Mean=round(mean(S),digits = 2), Q2=quantile(S, 0.75), Max = max(S))
+Sstas['Description'] = 'Single'
+
+Dstas <- baseball %>% 
+  summarise(Min = min(D), Q1=quantile(D, 0.25), Median = median(D), Mean=round(mean(D),digits = 2), Q2=quantile(D, 0.75), Max = max(D))
+Dstas['Description'] = 'Double'
+
+TRstas <- baseball %>% 
+  summarise(Min = min(TR), Q1=quantile(TR, 0.25), Median = median(TR), Mean=round(mean(TR),digits = 2), Q2=quantile(TR, 0.75), Max = max(TR))
+TRstas['Description'] = 'Triple'
+
+HRstas <- baseball %>% 
+  summarise(Min = min(HR), Q1=quantile(HR, 0.25), Median = median(HR), Mean=round(mean(HR),digits = 2), Q2=quantile(HR, 0.75), Max = max(HR))
+HRstas['Description'] = 'Home Round'
+
+a <- rbind(Hstas, Sstas, Dstas, TRstas, HRstas)
+b <- a[,c(7,1,2,3,4,5,6)]
+
+kbl(b) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "center") %>%
+  column_spec(1, bold=T) %>%
+  column_spec(4, color = "brown") %>%
+  column_spec(5, color = "brown")
+```
+
+The distribution of the different hits tends to be uniform with a small skew to the right. (All mean are greater than the median). The most common hits are the singles, where the players have managed to register between 46 and 136. It seems that it is easier to achieve a home run than to achieve a triple hit. As observed in the statistical measures, the data concentration of the triple hits is between 1 and 2 records while the home rounds are between 15 and 23.
+
+<br>
+
+[**Other numerical variables**]{.ul}
+
+The following plot shows the distribution of four of the response variables that I will use for the pleated analysis. The objective is to understand how these variables are represented individually in the data set and how they can be used to answer the main question.
+
+```{r echo=FALSE}
+p3 <- ggplot(baseball, aes(x=AVG)) +
+  geom_boxplot(outlier.shape = 18, outlier.color = '#AD8350', outlier.size = 2.5) +
+  geom_vline(aes(xintercept=mean(AVG, na.rm=T)),
+             color='#AD8350', size = 1)  +
+  labs(title = 'Batting Average Distribution',
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 10, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'white'),
+        panel.grid = element_blank()) +
+  annotate("text",
+           y=0.2, x=0.30, 
+           label = 'Q1: 0.25\nMedian: 0.27\nMean: 0.26\nQ3: 0.28', 
+           size =2.5)
+
+p4 <- ggplot(baseball, aes(x=TB)) +
+  geom_boxplot(outlier.shape = 18, outlier.color = '#AD8350', outlier.size = 2.5) +
+  geom_vline(aes(xintercept=mean(TB, na.rm=T)),
+             color='#AD8350', size = 1) +
+  labs(title = 'Total Bases Distribution',
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 10, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'white'),
+        panel.grid = element_blank()) +
+  annotate("text",
+           y=0.2, x=325, 
+           label = 'Q1: 212\nMedian: 237\nMean: 242\nQ3: 270', 
+           size =2.5)
+
+p5 <- ggplot(baseball, aes(x=CS)) +
+  geom_boxplot(outlier.shape = 18, outlier.color = '#AD8350', outlier.size = 2.5) +
+  geom_vline(aes(xintercept=mean(CS, na.rm=T)),
+             color='#AD8350', size = 1)  +
+  labs(title = 'Total Caught Stealing Distribution',
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 10, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'white'),
+        panel.grid = element_blank()) +
+  annotate("text",
+           y=0.2, x=8, 
+           label = 'Q1: 0\nMedian: 2\nMean: 3\nQ3: 4', 
+           size =2.5)
+
+p6 <- ggplot(baseball, aes(x=SB)) +
+  geom_boxplot(outlier.shape = 18, outlier.color = '#AD8350', outlier.size = 2.5) +
+  geom_vline(aes(xintercept=mean(SB, na.rm=T)),
+             color='#AD8350', size = 1) +
+  labs(title = 'Total Stolen Base Distribution',
+       y = ' ',
+       x = ' ') +
+  theme(plot.title = element_text(size = 10, face = 'bold'),
+        plot.subtitle = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        panel.background = element_rect(color = 'white'),
+        panel.grid = element_blank()) +
+  annotate("text",
+           y=0.2, x=35, 
+           label = 'Q1: 2\nMedian: 5.5\nMean: 8.6\nQ3: 13', 
+           size =2.5)
+
+(p3 + p4) / (p5 + p6)
+```
+
+-   **Batting Average**
+
+    It is determined by dividing a player's hits by his total at-bats. Batting average doesn't take into account the number of times a batter reaches base via walks or hit-by-pitches. And it doesn't take into account hit type (with a double, triple or home run being more valuable than a single). [(MLB definition)](https://www.mlb.com/glossary/standard-stats/batting-average)
+
+    The distribution of this variable seems to be normally distributed, considering that the mean 0.26 is very close to the median 0.27. On the other hand, the distribution of this variable indicates that the players achieve a successful hitting of 26% on average. Having a higher batting average can depend on different factors, one of which is that players require a high level of movement coordination and high reaction speed. Will these factors depend on the player's age or muscle mass? We will see this in the write up of the project.
+
+    <br>
+
+-   **Total Bases**
+
+    According to the distribution of this variable, there is a small skew to the right. The data concentration is between 212 and 270 bases. This variable tends to have a direct relationship with hits, so the higher the number of bases, the better the player's performance in the game.
+
+    <br>
+
+-   **Total Caught Stealing**
+
+    A caught stealing occurs when a runner attempts to steal but tagged out before reaching second base, third base or home plate. This is a bad indicator for a player. It may mean that they did not have enough speed to run to the next base before being caught. The distribution of this variable is skewed to the right. It is not very common for players to have high numbers of caught stealing. The data concentration is between 2 and 4.
+
+    <br>
+
+-   **Total Stolen Base**
+
+    This is another negative variable for a player, it means that due to lack of concentration they ran to a base without being allowed, which causes losing points for their team. The distribution of this variable is skewed to the right and the data concentration is between 2 and 13 records.
+
+<br>
+
+#### Univariate Analysis - Categorial Variable
+
+The batters that are part of this data set were born in different countries. The objective is to know the distribution of the country of birth to be able to evaluate in the write up of the project, if there is any relationship between the player's country of birth and his performance in the game.
+
+```{r echo=FALSE, out.width= "60%", out.extra='style="float:left; padding:10px"'}
+baseball$country_birth = fct_relevel(baseball$country_birth,
+                            c("Aruba", 'Bahamas', 'Japan', 'Mexico', 'Curacao',
+                              'Canada', 'Puerto Rico', 'Cuba', 'Venezuela',
+                              'Dominican Republic', 'USA'))
+
+ggplot(baseball, aes(y=country_birth)) +
+  geom_bar(fill = 'darkred', color = 'darkred') + 
+  labs(title = 'Number of Players by Country of Birth',
+       y = ' ',
+       x = 'Count') +
+   theme(plot.title = element_text(size = 14, face = 'bold'),,
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        panel.background = element_blank(),
+        panel.grid.major.x = element_line(linetype = 'dotted', 
+                                          color = "#DCDCDC",
+                                          size = 0.5),
+        plot.background = element_rect(colour = "grey", fill=NA, size=1)) +
+  annotate('text',y=11,x=80, label = 82, size =  4, color = 'white',
+           fontface = 'bold') +
+  annotate('text',y=10,x=13, label = 15, size =  4, color = 'white',
+           fontface = 'bold') +
+  annotate('text',y=9,x=10, label = 12, size =  4, color = 'white',
+           fontface = 'bold') +
+  annotate('text',y=8,x=8, label = 10, size =  4, color = 'white',
+           fontface = 'bold') +
+  annotate('text',y=7,x=2, label = 4, size =  4, color = 'white',
+           fontface = 'bold') +
+  annotate('text',y=6,x=1, label = 3, size =  4, color = 'white',
+           fontface = 'bold') +
+  annotate('text',y=5,x=3, label = 2, size =  4, color = 'black',
+           fontface = 'bold') +
+  annotate('text',y=4,x=2, label = 1, size =  4, color = 'black',
+           fontface = 'bold') +
+  annotate('text',y=3,x=2, label = 1, size =  4, color = 'black',
+           fontface = 'bold') +
+  annotate('text',y=2,x=2, label = 1, size =  4, color = 'black',
+           fontface = 'bold') +
+  annotate('text',y=1,x=2, label = 1, size =  4, color = 'black',
+           fontface = 'bold')
+```
+
+<br>
+
+As expected, most of the players in this data set were born in the United States. However, there is a significant number of players who were born in other countries such as Venezuela, the Dominican Republic and Cuba. Do players born in these last three countries perform better in the game than players from the United States? This will be evaluated later.
+
+<br>
+
+<br>
+
+## Regression Model
+
+To complement the previous analyzes, I will calculate the correlation coefficient between the age and body mass of the players versus the total hits, batting average, total bases, total caught stealing and total stolen base.
+
+The objective is to determine what is the relationship between these variables, as well as to establish the slope and intercept applying a regression model, to understand which of these variables is useful or significant to solve the question of this project. I will select the best model between linear and spline.
+
+Finally, and only if any of the relationships and variables is significant for the analysis, a predictive variable will be calculated based on a given variable.
+
+<br>
+
+# Data Set
+
+This is the detail of the data set once the data cleaning and data transformation has been applied.
+
+```{r echo=FALSE}
+#Import data set
+baseball <- read.csv('baseball.csv', stringsAsFactors = FALSE)
+
+#Calculate BMI
+baseball <- baseball %>% 
+  mutate(BMI=(round((Weight/((Height/100)^2)))))
+
+#Remove variables no needed for the analysis
+baseball <- baseball %>%
+  select(-b_ab, -b_total_pa, -b_strikeout, -b_walk, -b_k_percent, -b_bb_percent, -slg_percent, - on_base_percent, -isolated_power, -b_rbi, -b_lob, -b_ab_scoring, -b_ball, -b_called_strike, -b_catcher_interf, -woba, -on_base_plus_slg)
+
+#Change column name
+names(baseball)[1]<-paste('last_name')
+names(baseball)[4]<-paste('country_birth')
+names(baseball)[9]<-paste('H')
+names(baseball)[10]<-paste('1B')
+names(baseball)[11]<-paste('2B')
+names(baseball)[12]<-paste('3B')
+names(baseball)[13]<-paste('HR')
+names(baseball)[14]<-paste('AVG')
+names(baseball)[15]<-paste('TB')
+names(baseball)[16]<-paste('CS')
+names(baseball)[17]<-paste('SB')
+
+#Check data
+glimpse(baseball)
+```
+
+<br>
+
+## 
